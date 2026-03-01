@@ -143,4 +143,69 @@ describe("AppConfig", () => {
     expect(result.discord.webhooks.conflict).toEqual([])
     expect(result.discord.webhooks.debug).toEqual([])
   })
+
+  test("should ignore empty-string webhook values (as in .env.example template)", () => {
+    const testConfigProvider = ConfigProvider.fromMap(
+      new Map([
+        ["JWT_SECRET", "required-secret"],
+        ["DISCORD_CLIENT_ID", "required-client-id"],
+        ["DISCORD_CLIENT_SECRET", "required-client-secret"],
+        ["DISCORD_BOT_TOKEN", "required-bot-token"],
+        ["DISCORD_SERVER_ID", "required-server-id"],
+        ["INARA_API_KEY", "required-inara-key"],
+        ["API_KEY", "required-api-key"],
+        // Simulates .env.example with empty base var + a real second URL
+        ["DISCORD_BGS_WEBHOOK", ""],
+        ["DISCORD_BGS_WEBHOOK_2", "https://discord.webhook.bgs2"],
+      ])
+    )
+
+    const program = Effect.gen(function* () {
+      const config = yield* AppConfig
+      return config
+    })
+
+    const result = program.pipe(
+      Effect.provide(AppConfigLive),
+      Effect.withConfigProvider(testConfigProvider),
+      Effect.runSync
+    )
+
+    // Empty string must be excluded; only the real URL should be present
+    expect(result.discord.webhooks.bgs).toEqual(["https://discord.webhook.bgs2"])
+  })
+
+  test("should collect multiple non-empty webhook URLs", () => {
+    const testConfigProvider = ConfigProvider.fromMap(
+      new Map([
+        ["JWT_SECRET", "required-secret"],
+        ["DISCORD_CLIENT_ID", "required-client-id"],
+        ["DISCORD_CLIENT_SECRET", "required-client-secret"],
+        ["DISCORD_BOT_TOKEN", "required-bot-token"],
+        ["DISCORD_SERVER_ID", "required-server-id"],
+        ["INARA_API_KEY", "required-inara-key"],
+        ["API_KEY", "required-api-key"],
+        ["DISCORD_BGS_WEBHOOK", "https://discord.webhook.bgs1"],
+        ["DISCORD_BGS_WEBHOOK_2", "https://discord.webhook.bgs2"],
+        ["DISCORD_BGS_WEBHOOK_3", "https://discord.webhook.bgs3"],
+      ])
+    )
+
+    const program = Effect.gen(function* () {
+      const config = yield* AppConfig
+      return config
+    })
+
+    const result = program.pipe(
+      Effect.provide(AppConfigLive),
+      Effect.withConfigProvider(testConfigProvider),
+      Effect.runSync
+    )
+
+    expect(result.discord.webhooks.bgs).toEqual([
+      "https://discord.webhook.bgs1",
+      "https://discord.webhook.bgs2",
+      "https://discord.webhook.bgs3",
+    ])
+  })
 })

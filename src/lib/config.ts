@@ -63,11 +63,11 @@ export const DiscordServerId = Config.string("DISCORD_SERVER_ID")
 // Discord Webhook URLs
 const webhookList = (varName: string): Config.Config<string[]> =>
   Config.all([
-    Config.option(Config.string(varName)),
-    Config.option(Config.string(`${varName}_2`)),
-    Config.option(Config.string(`${varName}_3`)),
-    Config.option(Config.string(`${varName}_4`)),
-    Config.option(Config.string(`${varName}_5`)),
+    Config.option(Config.nonEmptyString(varName)),
+    Config.option(Config.nonEmptyString(`${varName}_2`)),
+    Config.option(Config.nonEmptyString(`${varName}_3`)),
+    Config.option(Config.nonEmptyString(`${varName}_4`)),
+    Config.option(Config.nonEmptyString(`${varName}_5`)),
   ]).pipe(Config.map((opts) => opts.flatMap((o) => (Option.isSome(o) ? [o.value] : []))))
 
 export const DiscordBgsWebhook = webhookList("DISCORD_BGS_WEBHOOK")
