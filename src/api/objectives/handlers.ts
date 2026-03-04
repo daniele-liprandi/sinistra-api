@@ -3,11 +3,62 @@ import { HttpApiBuilder, HttpServerRequest } from "@effect/platform"
 import { v4 as uuid } from "uuid"
 import { Api } from "../index.js"
 import { ObjectiveRepository } from "../../domain/repositories.js"
-import type { CreateObjectiveRequest, ProgressDetail } from "./dtos.js"
+import type { CreateObjectiveRequest, ProgressDetail, TargetInput } from "./dtos.js"
 import { Objective, ObjectiveTarget, ObjectiveTargetSettlement } from "../../domain/models.js"
 import { ObjectiveId, ObjectiveTargetId, ObjectiveTargetSettlementId } from "../../domain/ids.js"
 import { TursoClient } from "../../database/client.js"
 import { DatabaseError, ObjectiveNotFoundError } from "../../domain/errors.js"
+import {
+  MISSIONS_FIRST_THRESHOLD,
+  BOUNTY_FIRST_THRESHOLD,
+  TRADE_FIRST_THRESHOLD,
+  EXPLORATION_FIRST_THRESHOLD,
+} from "../../services/buckets.js"
+
+// ============================================================================
+// Default Targets
+// ============================================================================
+
+// Two-bin threshold: firstThreshold × multiplier¹ (value needed for 2 BGS pts)
+const TWO_BIN_INF        = MISSIONS_FIRST_THRESHOLD * 4     // 16 pluses
+const TWO_BIN_BV         = BOUNTY_FIRST_THRESHOLD * 2       // 800 000 cr
+const TWO_BIN_TRADE      = TRADE_FIRST_THRESHOLD * 4        // 8 000 000 cr
+const TWO_BIN_EXPL       = EXPLORATION_FIRST_THRESHOLD * 4  // 8 000 000 cr
+const DEFAULT_SPACE_CZ   = 3
+const DEFAULT_GROUND_CZ  = 10
+
+const DEFAULT_TARGETS: Record<string, Array<{ type: string; targetoverall: number }>> = {
+  boost: [
+    { type: "inf",        targetoverall: TWO_BIN_INF },
+    { type: "bv",         targetoverall: TWO_BIN_BV },
+    { type: "trade_prof", targetoverall: TWO_BIN_TRADE },
+    { type: "expl",       targetoverall: TWO_BIN_EXPL },
+  ],
+  win_war: [
+    { type: "space_cz",  targetoverall: DEFAULT_SPACE_CZ },
+    { type: "ground_cz", targetoverall: DEFAULT_GROUND_CZ },
+  ],
+  win_election: [
+    { type: "inf", targetoverall: TWO_BIN_INF },
+  ],
+}
+
+const buildDefaultTargets = (
+  objectiveType: string | null | undefined,
+  system: string | null | undefined,
+  faction: string | null | undefined,
+): TargetInput[] => {
+  if (!objectiveType) return []
+  const defaults = DEFAULT_TARGETS[objectiveType]
+  if (!defaults) return []
+  return defaults.map(({ type, targetoverall }) => ({
+    type,
+    system: system ?? null,
+    faction: faction ?? null,
+    targetoverall,
+    settlements: [],
+  }))
+}
 
 // ============================================================================
 // Progress Calculation
@@ -227,7 +278,12 @@ const computeTargetProgress = (
 const createRequestToObjective = (req: CreateObjectiveRequest): Objective => {
   const objectiveId = uuid() as ObjectiveId
 
-  const targets = req.targets.map((targetInput) => {
+  const targetInputs =
+    req.targets.length > 0
+      ? req.targets
+      : buildDefaultTargets(req.type, req.system, req.faction)
+
+  const targets = targetInputs.map((targetInput) => {
     const targetId = uuid() as ObjectiveTargetId
 
     const settlements = targetInput.settlements.map((settlementInput) =>
