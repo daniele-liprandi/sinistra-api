@@ -358,7 +358,8 @@ const buildGetObjectivesEffect = (
     }
     if (activeOnly) {
       const now = new Date().toISOString()
-      whereClauses.push("startdate <= ? AND enddate >= ?")
+      // NULL enddate means the objective never expires; NULL startdate means it started immediately
+      whereClauses.push("(startdate IS NULL OR startdate <= ?) AND (enddate IS NULL OR enddate >= ?)")
       args.push(now, now)
     }
     if (whereClauses.length > 0) {
