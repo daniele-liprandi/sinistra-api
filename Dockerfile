@@ -26,4 +26,4 @@ EXPOSE 3000
 
 # Run migrations, then start the EDDN worker (Node) and the main server (Bun) in parallel.
 # The EDDN worker writes to the shared SQLite DB; the main server handles the API.
-CMD ["sh", "-c", "bun run src/database/migrate.ts && node scripts/eddn-worker.mjs & bun run src/main.ts"]
+CMD ["sh", "-c", "bun run src/database/migrate.ts && bun run src/main.ts"]

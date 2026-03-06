@@ -10,6 +10,22 @@ services:
       - ./data:/app/data
     networks:
       - sinistra_network
+    restart: unless-stopped
+
+  eddn-worker:
+    build:
+      context: .
+    command: ["node", "scripts/eddn-worker.mjs"]
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    networks:
+      - sinistra_network
+    mem_limit: 256m
+    restart: unless-stopped
+    depends_on:
+      - backend
 
   dashboard:
     build:
